@@ -3,3 +3,6 @@ torchvision
 scikit-learn
 pillow
 numpy
+pandas
+seaborn
+matplotlib

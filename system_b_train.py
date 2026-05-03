@@ -11,7 +11,10 @@ import pandas as pd
 import time
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC, LinearSVC
+import time
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.svm import SVC
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -130,3 +133,102 @@ print("                 Predicted")
 print("                happy  angry")
 print(f"Actual happy    {cm[0, 0]:5d}  {cm[0, 1]:5d}")
 print(f"Actual angry    {cm[1, 0]:5d}  {cm[1, 1]:5d}")
+
+
+# ── 7. VISUALIZATIONS ───────────────────────────────────
+
+sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
+C_values = [r["C"] for r in results["params"]]
+mean_scores = results["mean_test_score"].tolist()
+std_scores = results["std_test_score"].tolist()
+ 
+ 
+# ── Chart 1: Grid Search CV Accuracy vs C Values ──────────────────
+# Shows how each C value performed during cross validation
+# Helps justify why C=0.005 was selected as the best parameter
+fig1, ax1 = plt.subplots(figsize=(10, 5))
+ 
+cv_df = pd.DataFrame({
+    "C Value": [str(c) for c in C_values],
+    "CV Accuracy": mean_scores,
+    "Std": std_scores
+}).sort_values("C Value")
+ 
+sns.barplot(
+    data=cv_df,x="C Value",y="CV Accuracy",palette="Blues_d",ax=ax1
+)
+ 
+# Add error bars for std deviation
+ax1.errorbar(
+    x=range(len(cv_df)),y=cv_df["CV Accuracy"],yerr=cv_df["Std"],fmt="none",color="black",capsize=4,linewidth=1.2
+)
+ 
+# Highlight the best bar
+best_c_str = str(grid.best_params_["C"])
+best_idx = list(cv_df["C Value"]).index(best_c_str)
+ax1.patches[best_idx].set_facecolor("#e74c3c")  # Red for best bar
+ 
+ax1.set_title("System B — Grid Search CV Accuracy vs C Values", fontsize=13, fontweight="bold")
+ax1.set_xlabel("C Value (SVM Regularization)", fontsize=11)
+ax1.set_ylabel("Mean CV Accuracy", fontsize=11)
+ax1.set_ylim(0.70, 0.85)
+ax1.axhline(y=grid.best_score_, color="red", linestyle="--", linewidth=1.2, label=f"Best CV = {grid.best_score_:.4f}")
+ax1.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.savefig("gridsearch_cv_acc.png", dpi=150)
+plt.show()
+print("Chart 1 saved: gridsearch_cv_acc.png")
+ 
+ 
+# ── Chart 2: Confusion Matrix Heatmap ─────────────────────────────
+# Shows exactly how many happy/angry images were correctly classified
+# and where the model made mistakes on the test set
+fig2, ax2 = plt.subplots(figsize=(6, 5))
+ 
+sns.heatmap(
+    cm, annot=True, fmt="d", cmap="Blues",xticklabels=["Happy", "Angry"],yticklabels=["Happy", "Angry"],linewidths=0.5,linecolor="gray",annot_kws={"size": 14, "weight": "bold"},ax=ax2
+)
+ 
+ax2.set_title("System B — Confusion Matrix (Test Set)", fontsize=13, fontweight="bold")
+ax2.set_xlabel("Predicted Label", fontsize=11)
+ax2.set_ylabel("Actual Label", fontsize=11)
+plt.tight_layout()
+plt.savefig("confusion_matrix.png", dpi=150)
+plt.show()
+print("Chart 2 saved: confusion_matrix.png")
+ 
+ 
+# ── Chart 3: Training vs Testing Accuracy Comparison ──────────────
+# Directly answers the report question about fitting quality
+# The gap between bars shows overfitting/underfitting/well-fitted
+fig3, ax3 = plt.subplots(figsize=(6, 5))
+ 
+acc_df = pd.DataFrame({
+    "Split": ["Training Accuracy", "Testing Accuracy"],
+    "Accuracy": [train_acc, test_acc]
+})
+ 
+bars = sns.barplot(
+    data=acc_df, x="Split",y="Accuracy",palette=["#2ecc71", "#3498db"],ax=ax3
+)
+ 
+# Add value labels on top of each bar
+for bar, val in zip(ax3.patches, [train_acc, test_acc]):
+    ax3.text(
+        bar.get_x() + bar.get_width() / 2,
+        bar.get_height() + 0.005,
+        f"{val * 100:.2f}%",
+        ha="center",va="bottom",fontsize=12, fontweight="bold"
+    )
+ 
+ax3.set_title("System B — Training vs Testing Accuracy", fontsize=13, fontweight="bold")
+ax3.set_xlabel("")
+ax3.set_ylabel("Accuracy", fontsize=11)
+ax3.set_ylim(0, 1.05)
+ax3.axhline(y=train_acc, color="#2ecc71", linestyle="--", linewidth=1, alpha=0.5)
+ax3.axhline(y=test_acc,  color="#3498db", linestyle="--", linewidth=1, alpha=0.5)
+plt.tight_layout()
+plt.savefig("train_test_acc.png", dpi=150)
+plt.show()
+print("Chart 3 saved: train_test_acc.png")
